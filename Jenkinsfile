@@ -7,14 +7,23 @@ pipeline {
         TAG        = "${BUILD_NUMBER}"
     }
 
-   
+    stages {
         stage('Build Image') {
             steps {
                 script {
-                    if (env.BRANCH_NAME == "dev") {
+                    def branch = env.BRANCH_NAME
+                    if (!branch || branch == "null") {
+                        branch = sh(script: "git rev-parse --abbrev-ref HEAD", returnStdout: true).trim()
+                    }
+
+                    echo "Branch: ${branch}"
+
+                    if (branch == "dev") {
                         sh "docker build -t ${DEV_IMAGE}:${TAG} -t ${DEV_IMAGE}:latest ."
-                    } else if (env.BRANCH_NAME == "master") {
+                    } else if (branch == "main" || branch == "master") {
                         sh "docker build -t ${PROD_IMAGE}:${TAG} -t ${PROD_IMAGE}:latest ."
+                    } else {
+                        error "Unsupported branch: ${branch}"
                     }
                 }
             }
@@ -35,12 +44,19 @@ pipeline {
         stage('Push Image') {
             steps {
                 script {
-                    if (env.BRANCH_NAME == "dev") {
+                    def branch = env.BRANCH_NAME
+                    if (!branch || branch == "null") {
+                        branch = sh(script: "git rev-parse --abbrev-ref HEAD", returnStdout: true).trim()
+                    }
+
+                    if (branch == "dev") {
                         sh "docker push ${DEV_IMAGE}:${TAG}"
                         sh "docker push ${DEV_IMAGE}:latest"
-                    } else if (env.BRANCH_NAME == "master") {
+                    } else if (branch == "main" || branch == "master") {
                         sh "docker push ${PROD_IMAGE}:${TAG}"
                         sh "docker push ${PROD_IMAGE}:latest"
+                    } else {
+                        error "Unsupported branch: ${branch}"
                     }
                 }
             }
@@ -53,22 +69,31 @@ pipeline {
                     keyFileVariable: 'SSH_KEY'
                 )]) {
                     script {
-                        if (env.BRANCH_NAME == "dev") {
+                        def branch = env.BRANCH_NAME
+                        if (!branch || branch == "null") {
+                            branch = sh(script: "git rev-parse --abbrev-ref HEAD", returnStdout: true).trim()
+                        }
+
+                        if (branch == "dev") {
                             sh """
-                            ssh -o StrictHostKeyChecking=no -i $SSH_KEY ubuntu@YOUR_EC2_PUBLIC_IP \
-                            'docker pull ${DEV_IMAGE}:latest &&
-                             docker stop devops-build-app || true &&
-                             docker rm devops-build-app || true &&
-                             docker run -d --name devops-build-app -p 80:80 --restart always ${DEV_IMAGE}:latest'
+                            ssh -o StrictHostKeyChecking=no -i \$SSH_KEY ubuntu@YOUR_EC2_PUBLIC_IP '
+                            docker pull ${DEV_IMAGE}:latest &&
+                            docker stop devops-build-app || true &&
+                            docker rm devops-build-app || true &&
+                            docker run -d --name devops-build-app -p 80:80 --restart always ${DEV_IMAGE}:latest
+                            '
                             """
-                        } else if (env.BRANCH_NAME == "master") {
+                        } else if (branch == "main" || branch == "master") {
                             sh """
-                            ssh -o StrictHostKeyChecking=no -i $SSH_KEY ubuntu@YOUR_EC2_PUBLIC_IP \
-                            'docker pull ${PROD_IMAGE}:latest &&
-                             docker stop devops-build-app || true &&
-                             docker rm devops-build-app || true &&
-                             docker run -d --name devops-build-app -p 80:80 --restart always ${PROD_IMAGE}:latest'
+                            ssh -o StrictHostKeyChecking=no -i \$SSH_KEY ubuntu@YOUR_EC2_PUBLIC_IP '
+                            docker pull ${PROD_IMAGE}:latest &&
+                            docker stop devops-build-app || true &&
+                            docker rm devops-build-app || true &&
+                            docker run -d --name devops-build-app -p 80:80 --restart always ${PROD_IMAGE}:latest
+                            '
                             """
+                        } else {
+                            error "Unsupported branch: ${branch}"
                         }
                     }
                 }
