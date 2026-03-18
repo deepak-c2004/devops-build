@@ -22,3 +22,4 @@ docker run -d \
   ${IMAGE_NAME}:${TAG}
 
 echo "Deployment completed: ${IMAGE_NAME}:${TAG}"
+
