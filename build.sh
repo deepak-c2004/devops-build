@@ -13,3 +13,4 @@ docker build -t ${IMAGE_NAME}:${TAG} .
 docker tag ${IMAGE_NAME}:${TAG} ${IMAGE_NAME}:latest
 
 echo "Build completed for ${IMAGE_NAME}:${TAG}"
+
