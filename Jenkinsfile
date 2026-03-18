@@ -5,7 +5,7 @@ pipeline {
         DEV_IMAGE  = "deepakc742004/dev"
         PROD_IMAGE = "deepakc742004/prod"
         TAG        = "${BUILD_NUMBER}"
-        EC2_HOST   = "YOUR_EC2_PUBLIC_IP"
+        EC2_HOST   = "54.90.232.167"
     }
 
     stages {
