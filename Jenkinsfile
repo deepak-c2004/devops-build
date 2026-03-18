@@ -7,14 +7,7 @@ pipeline {
         TAG        = "${BUILD_NUMBER}"
     }
 
-    stages {
-        stage('Checkout') {
-            steps {
-                git branch: "${env.BRANCH_NAME}",
-                    url: 'https://github.com/deepak-c2004/devops-build.git'
-            }
-        }
-
+   
         stage('Build Image') {
             steps {
                 script {
