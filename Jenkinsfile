@@ -5,6 +5,7 @@ pipeline {
         DEV_IMAGE  = "deepakc742004/dev"
         PROD_IMAGE = "deepakc742004/prod"
         TAG        = "${BUILD_NUMBER}"
+        EC2_HOST   = "YOUR_EC2_PUBLIC_IP"
     }
 
     stages {
@@ -12,11 +13,21 @@ pipeline {
             steps {
                 script {
                     def branch = env.BRANCH_NAME
+
                     if (!branch || branch == "null") {
-                        branch = sh(script: "git rev-parse --abbrev-ref HEAD", returnStdout: true).trim()
+                        branch = env.GIT_BRANCH
                     }
 
-                    echo "Branch: ${branch}"
+                    if (!branch || branch == "null") {
+                        branch = sh(
+                            script: "git branch -a | grep remotes/origin/ | grep -v HEAD | sed 's|.*origin/||' | head -n 1",
+                            returnStdout: true
+                        ).trim()
+                    }
+
+                    branch = branch.replace("origin/", "").trim()
+
+                    echo "Detected branch: ${branch}"
 
                     if (branch == "dev") {
                         sh "docker build -t ${DEV_IMAGE}:${TAG} -t ${DEV_IMAGE}:latest ."
@@ -45,9 +56,21 @@ pipeline {
             steps {
                 script {
                     def branch = env.BRANCH_NAME
+
                     if (!branch || branch == "null") {
-                        branch = sh(script: "git rev-parse --abbrev-ref HEAD", returnStdout: true).trim()
+                        branch = env.GIT_BRANCH
                     }
+
+                    if (!branch || branch == "null") {
+                        branch = sh(
+                            script: "git branch -a | grep remotes/origin/ | grep -v HEAD | sed 's|.*origin/||' | head -n 1",
+                            returnStdout: true
+                        ).trim()
+                    }
+
+                    branch = branch.replace("origin/", "").trim()
+
+                    echo "Detected branch: ${branch}"
 
                     if (branch == "dev") {
                         sh "docker push ${DEV_IMAGE}:${TAG}"
@@ -70,13 +93,25 @@ pipeline {
                 )]) {
                     script {
                         def branch = env.BRANCH_NAME
+
                         if (!branch || branch == "null") {
-                            branch = sh(script: "git rev-parse --abbrev-ref HEAD", returnStdout: true).trim()
+                            branch = env.GIT_BRANCH
                         }
+
+                        if (!branch || branch == "null") {
+                            branch = sh(
+                                script: "git branch -a | grep remotes/origin/ | grep -v HEAD | sed 's|.*origin/||' | head -n 1",
+                                returnStdout: true
+                            ).trim()
+                        }
+
+                        branch = branch.replace("origin/", "").trim()
+
+                        echo "Detected branch: ${branch}"
 
                         if (branch == "dev") {
                             sh """
-                            ssh -o StrictHostKeyChecking=no -i \$SSH_KEY ubuntu@YOUR_EC2_PUBLIC_IP '
+                            ssh -o StrictHostKeyChecking=no -i \$SSH_KEY ubuntu@${EC2_HOST} '
                             docker pull ${DEV_IMAGE}:latest &&
                             docker stop devops-build-app || true &&
                             docker rm devops-build-app || true &&
@@ -85,7 +120,7 @@ pipeline {
                             """
                         } else if (branch == "main" || branch == "master") {
                             sh """
-                            ssh -o StrictHostKeyChecking=no -i \$SSH_KEY ubuntu@YOUR_EC2_PUBLIC_IP '
+                            ssh -o StrictHostKeyChecking=no -i \$SSH_KEY ubuntu@${EC2_HOST} '
                             docker pull ${PROD_IMAGE}:latest &&
                             docker stop devops-build-app || true &&
                             docker rm devops-build-app || true &&
